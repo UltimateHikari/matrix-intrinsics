@@ -47,7 +47,7 @@ void trivial_mult_opt(Matrix* A, Matrix* B, Matrix* C){
 			float b = B->m[i*size + j]; //value not pointer
 			float* c = C->m + j*size;
 			for(int k = 0; k < size; ++k){
-				a[k] = b*c[k];
+				a[k] += b*c[k];
 			}
 		}
 	}
