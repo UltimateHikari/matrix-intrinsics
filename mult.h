@@ -9,7 +9,7 @@ struct Matrix{
 	int n;
 	float* m; //matrix
 	Matrix(int n_): n(n_){
-		m = new float[n*n];
+		m = new float[n*n]();
 	}
 	Matrix(int n_, bool p): Matrix(n_){
 		// I
@@ -48,5 +48,7 @@ void trivial_sum(Matrix* A, Matrix* B);
 void trivial_sub(Matrix* A, Matrix* B);
 void trivial_mult_opt(Matrix* A, Matrix* B, Matrix* C);
 
+void vector_sum(Matrix* A, Matrix* B);
+void vector_sub(Matrix* A, Matrix* B);
 void vector_mult(Matrix* A, Matrix* B, Matrix* C);
 void vector_mult_opt(Matrix* A, Matrix* B, Matrix* C);

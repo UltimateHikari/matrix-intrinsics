@@ -3,11 +3,6 @@
 using namespace std;
 
 void trivial_sum(Matrix* A, Matrix* B){
-	if(A->n != B->n){
-		std::cerr << "size mistmatch, aborting\n";
-		return;
-	}
-
 	int I_MAX =  A->n*A->n;
 	for(int i = 0; i < I_MAX; ++i){
 		A->m[i] += B->m[i];
@@ -15,14 +10,31 @@ void trivial_sum(Matrix* A, Matrix* B){
 }
 
 void trivial_sub(Matrix* A, Matrix* B){
-	if(A->n != B->n){
-		std::cerr << "size mistmatch, aborting\n";
-		return;
-	}
-
 	int I_MAX =  A->n*A->n;
 	for(int i = 0; i < I_MAX; ++i){
 		A->m[i] -= B->m[i];
+	}
+}
+
+void vector_sum(Matrix* A, Matrix* B){
+	int I_MAX =  A->n*A->n;
+	float* a = A->m;
+	float* b = B->m;
+	__m256 a0 = _mm256_setzero_ps();
+	for(int i = 0; i < I_MAX; i+=8){
+		a0 = _mm256_loadu_ps(a + i);
+		_mm256_storeu_ps(a + i, _mm256_add_ps(a0, _mm256_loadu_ps(b + i)));
+	}
+}
+
+void vector_sub(Matrix* A, Matrix* B){
+	int I_MAX =  A->n*A->n;
+	float* a = A->m;
+	float* b = B->m;
+	__m256 a0 = _mm256_setzero_ps();
+	for(int i = 0; i < I_MAX; i+=8){
+		a0 = _mm256_loadu_ps(a + i);
+		_mm256_storeu_ps(a + i, _mm256_sub_ps(a0, _mm256_loadu_ps(b + i)));
 	}
 }
 

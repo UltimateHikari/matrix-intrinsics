@@ -84,14 +84,14 @@ void vect_invert(int N, int M,Matrix* A, Matrix* A1){
 	C(N,true), R1(N), R2(N);
 	trivial_b(&B, A);
 	vector_mult_opt(&B, A, A1); //reusing as BA
-	trivial_sub(&R, A1);
+	vector_sub(&R, A1);
 	Matrix* rcur = &R1;
 	Matrix* rnext = &R2;
-	trivial_sum(rcur, &R);
-	trivial_sum(&C, rcur);
+	vector_sum(rcur, &R);
+	vector_sum(&C, rcur);
 	for(int i = 2; i < M; ++i){
 		vector_mult_opt(rcur, &R,rnext);
-		trivial_sum(&C, rnext);
+		vector_sum(&C, rnext);
 		ptr_swap(&rnext, &rcur);
 		memset(rnext->m, 0, sizeof(float)*N*N);
 	}
@@ -102,74 +102,60 @@ void vect_invert(int N, int M,Matrix* A, Matrix* A1){
 void blas_invert(int N, int M,Matrix* A, Matrix* A1){
 	Matrix R(N,true), B(N,true),
 	C(N,true), R1(N), R2(N);
+	int matsize = N*N;
 	trivial_b(&B, A);
 	cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans,
 			N,N,N,1.0,B.m,N,A->m,N, 0.0,A1->m,N);
-	//vector_mult_opt(&B, A, A1); //reusing as BA
-	trivial_sub(&R, A1);
+	cblas_saxpy(matsize,-1.0, A1->m ,1.0, R.m, 1.0); //ba for now
 	Matrix* rcur = &R1;
 	Matrix* rnext = &R2;
-	trivial_sum(rcur, &R);
-	trivial_sum(&C, rcur);
+	cblas_saxpy(matsize,1.0, R.m ,1.0, rcur->m, 1.0);
+	cblas_saxpy(matsize,1.0, rcur->m, 1.0, C.m ,1.0);
 	for(int i = 2; i < M; ++i){
 		cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans,
 			N,N,N,1.0,rcur->m,N,R.m,N, 0.0,rnext->m,N);
-		//vector_mult_opt(rcur, &R,rnext);
-		trivial_sum(&C, rnext);
+		cblas_saxpy(matsize,1.0, rnext->m, 1.0, C.m ,1.0);
 		ptr_swap(&rnext, &rcur);
 		memset(rnext->m, 0, sizeof(float)*N*N);
 	}
 	memset(A1->m, 0, sizeof(float)*N*N);
-	vector_mult_opt(&C, &B,A1);
+	cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans,
+			N,N,N,1.0,C.m,N,B.m,N, 0.0,A1->m,N);
 }
 
-int main(){
+int main(int argc, char** argv){
 	int N=1,M;
+	if(argc < 2){return EXIT_FAILURE;}
 	struct timespec start,lap1,lap2,lap3,end;
-	ifstream fin("input.txt");
+	ifstream fin("input_l.txt");
 	ofstream fout("output.txt");fout.close();
-						// srand(time(NULL));
-						// Matrix A(2048);
-						// random_matrix(&A);
-						// A.out();
 	fin >> N >> M;
 	// (N,true) == I
-	Matrix A(N), Ct(N),Cv(N),Cb(N);
+	Matrix A(N), C(N);
 	for(int i = 0; i < N*N; ++i){
 		fin >> A.m[i];
 	}
-	//inreference between? wtf?
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-	trivial_invert(N,M,&A, &Ct);
-	clock_gettime(CLOCK_MONOTONIC_RAW, &lap1);
-	vect_invert(N,M,&A,&Cv);
-	clock_gettime(CLOCK_MONOTONIC_RAW, &lap2);
-	blas_invert(N,M,&A,&Cb);
-	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	time_delta("optimized  : ",&start, &lap1);
-	time_delta("corereorder: ",&lap1, &lap2);
-	time_delta("cblas      : ",&lap2, &end);
-
-	// clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-	// trivial_mult_opt(&BA, &A, &B);
-	// clock_gettime(CLOCK_MONOTONIC_RAW, &lap1);
-	// vector_mult(&A,&B,&BA);
-	// clock_gettime(CLOCK_MONOTONIC_RAW, &lap2);
-	// vector_mult_opt(&A,&B,&BA);
-	// clock_gettime(CLOCK_MONOTONIC_RAW, &lap3);
-	// cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans,
-	// 	N,N,N,1.0,A.m,N,B.m,N, 0.0,BA.m,N);
-	// clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
-
-	//time_delta("optimized  : ",&start, &lap1);
-	// time_delta("vect_core  : ",&lap1, &lap2);
-	// time_delta("corereorder: ",&lap2, &lap3);
-	// time_delta("cblas      : ",&lap3, &end);
-
-	Ct.out();
-	Cv.out();
-	Cb.out();
 	fin.close();
-	return 0;
+
+	switch(argv[1][1]){
+		case 't':
+			clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+			trivial_invert(N,M,&A, &C);
+			clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+			time_delta("optimized  : ",&start, &end);
+			break;
+		case 'v':
+			clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+			vect_invert(N,M,&A, &C);
+			clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+			time_delta("corereorder: ",&start, &end);
+			break;
+		case 'b':
+			clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+			blas_invert(N,M,&A, &C);
+			clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+			time_delta("blas       : ",&start, &end);
+	}
+	C.out();
+	return EXIT_SUCCESS;
 }
